@@ -258,5 +258,5 @@ rm -f ~/.local/share/applications/elite-clipboard.desktop
 
 ## License
 
-MIT
+MIT License — see [LICENSE](./LICENSE)
 ```
