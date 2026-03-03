@@ -175,19 +175,6 @@ ecb ping
 
 ---
 
-## GNOME Top Bar Icon
-
-```bash
-sudo apt install gnome-shell-extension-appindicator
-gnome-extensions enable appindicatorsupport@rgcjonas.gmail.com
-
-# restart GNOME shell (X11 only, no logout needed)
-busctl --user call org.gnome.Shell /org/gnome/Shell \
-  org.gnome.Shell Eval s 'Meta.restart("Restarting...")'
-```
-
----
-
 ## CLI
 
 ```
