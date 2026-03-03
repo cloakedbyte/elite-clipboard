@@ -1,0 +1,278 @@
+***
+
+```markdown
+# elite-clipboard
+
+A fast, intelligent clipboard manager for Linux built entirely in Go.
+Runs as a silent background daemon, classifies everything you copy into
+workspaces, stores it in SQLite, and surfaces it through a native GUI,
+a CLI, and an fzf fuzzy picker.
+
+No Electron. No Python. No cloud.
+
+---
+
+## Platform
+
+| Requirement    | Details                             |
+|----------------|-------------------------------------|
+| OS             | Linux                               |
+| Display Server | X11 (Wayland not yet supported)     |
+| Tested On      | Pop!_OS 22.04, Ubuntu 22.04+        |
+| Architecture   | amd64                               |
+
+---
+
+## Stack
+
+| Component       | Technology                    |
+|-----------------|-------------------------------|
+| Language        | Go 1.22+                      |
+| GUI             | Fyne v2                       |
+| Database        | SQLite via go-sqlite3 (CGO)   |
+| Clipboard I/O   | xclip                         |
+| IPC             | Unix domain socket over JSON  |
+| Process manager | systemd user services         |
+| Fuzzy picker    | fzf                           |
+
+---
+
+## Features
+
+- Continuous background clipboard monitoring
+- Auto-classification into 5 workspaces: Work, Code, Research, Temp, Sensitive
+- Sensitive content detection — API keys, JWTs, credit cards, passwords redacted
+- SQLite persistent storage with soft delete and pinning
+- Unix socket IPC — any process can talk to the daemon
+- Native GUI tray app
+- Full CLI via `ecb`
+- fzf fuzzy picker with copy, pin, delete bindings
+- Auto-starts on login via systemd
+
+---
+
+## Prerequisites
+
+### Go 1.22+
+
+Download from https://go.dev/dl/
+
+```bash
+wget https://go.dev/dl/go1.22.0.linux-amd64.tar.gz
+sudo rm -rf /usr/local/go
+sudo tar -C /usr/local -xzf go1.22.0.linux-amd64.tar.gz
+echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+source ~/.bashrc
+go version
+```
+
+### System packages
+
+```bash
+sudo apt update
+sudo apt install -y \
+  gcc libgl1-mesa-dev xorg-dev \
+  xclip fzf libsqlite3-dev \
+  gir1.2-appindicator3-0.1
+```
+
+---
+
+## Installation
+
+**1. Clone**
+
+```bash
+git clone https://github.com/cloakedbyte/elite-clipboard.git
+cd elite-clipboard
+```
+
+**2. Install Go dependencies**
+
+```bash
+go mod tidy
+```
+
+**3. Build**
+
+```bash
+mkdir -p bin
+go build -o bin/elite-clipd ./cmd/daemon/
+go build -o bin/ecb ./cmd/ecb/
+go build -o bin/elite-tray ./cmd/tray/
+```
+
+**4. Install to PATH**
+
+```bash
+sudo ln -sf $(pwd)/bin/elite-clipd /usr/local/bin/elite-clipd
+sudo ln -sf $(pwd)/bin/ecb /usr/local/bin/ecb
+sudo ln -sf $(pwd)/bin/ecb-pick /usr/local/bin/ecb-pick
+```
+
+**5. Check your DISPLAY**
+
+```bash
+echo $DISPLAY
+# usually :1 on Pop!_OS and Ubuntu
+```
+
+**6. Create daemon service at `~/.config/systemd/user/elite-clipboard.service`**
+
+```ini
+[Unit]
+Description=elite-clipboard daemon
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/elite-clipboard/bin/elite-clipd
+Restart=on-failure
+RestartSec=3
+StandardOutput=append:%h/.local/share/elite-clipboard/daemon.log
+StandardError=append:%h/.local/share/elite-clipboard/daemon.log
+Environment=DISPLAY=:1
+Environment=XAUTHORITY=/home/YOUR_USERNAME/.Xauthority
+
+[Install]
+WantedBy=graphical-session.target
+```
+
+**7. Create tray service at `~/.config/systemd/user/elite-tray.service`**
+
+```ini
+[Unit]
+Description=elite-clipboard tray
+After=graphical-session.target elite-clipboard.service
+Wants=elite-clipboard.service
+
+[Service]
+Type=simple
+ExecStart=%h/elite-clipboard/bin/elite-tray
+Restart=on-failure
+RestartSec=3
+Environment=DISPLAY=:1
+Environment=XAUTHORITY=/home/YOUR_USERNAME/.Xauthority
+
+[Install]
+WantedBy=graphical-session.target
+```
+
+Replace `YOUR_USERNAME` and `DISPLAY=:1` with your values.
+
+**8. Enable and start**
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable elite-clipboard.service elite-tray.service
+systemctl --user start elite-clipboard.service elite-tray.service
+```
+
+**9. Verify**
+
+```bash
+ecb ping
+# expected: [+]  daemon is alive
+```
+
+---
+
+## GNOME Top Bar Icon
+
+```bash
+sudo apt install gnome-shell-extension-appindicator
+gnome-extensions enable appindicatorsupport@rgcjonas.gmail.com
+
+# restart GNOME shell (X11 only, no logout needed)
+busctl --user call org.gnome.Shell /org/gnome/Shell \
+  org.gnome.Shell Eval s 'Meta.restart("Restarting...")'
+```
+
+---
+
+## CLI
+
+```
+ecb search  [query]    Search clipboard history
+ecb ws      <0-4>      List items in a workspace
+ecb pin     <id>       Pin an item permanently
+ecb unpin   <id>       Unpin an item
+ecb del     <id>       Soft-delete an item
+ecb copy    <id>       Push item back to clipboard
+ecb clear   [ws]       Clear history, optionally by workspace
+ecb pinned             List all pinned items
+ecb ping               Check daemon status
+```
+
+---
+
+## Workspaces
+
+| ID | Name      | Cap | Retention |
+|----|-----------|-----|-----------|
+| 0  | Work      | 200 | 30 days   |
+| 1  | Code      | 300 | 60 days   |
+| 2  | Research  | 200 | 30 days   |
+| 3  | Temp      | 50  | 1 day     |
+| 4  | Sensitive | 50  | 1 day     |
+
+---
+
+## Configuration
+
+Auto-generated at `~/.config/elite-clipboard/config.json`:
+
+```json
+{
+  "max_items": 500,
+  "size_cap_mb": 100,
+  "poll_interval_ms": 1000,
+  "monitor_clipboard": true,
+  "monitor_primary": false,
+  "min_content_length": 4,
+  "excluded_apps": ["keepassxc", "KeePassXC", "gnome-keyring"]
+}
+```
+
+---
+
+## File Locations
+
+| Path                                          | Contents        |
+|-----------------------------------------------|-----------------|
+| `~/.local/share/elite-clipboard/store.db`     | SQLite database |
+| `~/.local/share/elite-clipboard/daemon.log`   | Daemon log      |
+| `~/.config/elite-clipboard/config.json`       | User config     |
+| `/tmp/elite-clipboard.sock`                   | IPC socket      |
+
+---
+
+## Logs
+
+```bash
+tail -f ~/.local/share/elite-clipboard/daemon.log
+systemctl --user status elite-clipboard.service
+journalctl --user -u elite-clipboard.service -n 50
+```
+
+---
+
+## Uninstall
+
+```bash
+systemctl --user stop elite-clipboard.service elite-tray.service
+systemctl --user disable elite-clipboard.service elite-tray.service
+rm ~/.config/systemd/user/elite-clipboard.service
+rm ~/.config/systemd/user/elite-tray.service
+sudo rm /usr/local/bin/ecb /usr/local/bin/elite-clipd /usr/local/bin/ecb-pick
+rm -rf ~/elite-clipboard ~/.config/elite-clipboard ~/.local/share/elite-clipboard
+rm -f ~/.local/share/applications/elite-clipboard.desktop
+```
+
+---
+
+## License
+
+MIT
+```
