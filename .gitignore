@@ -1,0 +1,5 @@
+bin/
+*.db
+*.log
+*.gz
+go.sum

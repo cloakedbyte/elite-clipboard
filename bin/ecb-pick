@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# elite-clipboard fuzzy picker — bind to a hotkey in your WM
+
+BINARY="$HOME/elite-clipboard/bin/ecb"
+
+selected=$("$BINARY" search 2>/dev/null \
+  | grep -E "^  #[0-9]+" \
+  | fzf \
+      --ansi \
+      --reverse \
+      --height=50% \
+      --border=rounded \
+      --prompt="  clip > " \
+      --header="  [enter] copy   [ctrl-p] pin   [ctrl-d] delete" \
+      --bind "ctrl-p:execute-silent($BINARY pin {1} | tr -d '#')+reload($BINARY search 2>/dev/null | grep -E '^  #[0-9]+')" \
+      --bind "ctrl-d:execute-silent($BINARY del {1} | tr -d '#')+reload($BINARY search 2>/dev/null | grep -E '^  #[0-9]+')" \
+  )
+
+[ -z "$selected" ] && exit 0
+
+id=$(echo "$selected" | grep -oP '(?<=#)\d+')
+"$BINARY" copy "$id"
