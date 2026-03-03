@@ -1,6 +1,3 @@
-***
-
-```markdown
 # elite-clipboard
 
 A fast, intelligent clipboard manager for Linux built entirely in Go.
