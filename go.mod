@@ -1,4 +1,4 @@
-module github.com/yourusername/elite-clipboard
+module github.com/cloakedbyte/elite-clipboard
 
 go 1.22.0
 

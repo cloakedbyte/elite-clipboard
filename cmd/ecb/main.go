@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yourusername/elite-clipboard/internal/clipboard"
-	"github.com/yourusername/elite-clipboard/internal/db"
-	"github.com/yourusername/elite-clipboard/internal/ipc"
+	"github.com/cloakedbyte/elite-clipboard/internal/clipboard"
+	"github.com/cloakedbyte/elite-clipboard/internal/db"
+	"github.com/cloakedbyte/elite-clipboard/internal/ipc"
 )
 
 const (

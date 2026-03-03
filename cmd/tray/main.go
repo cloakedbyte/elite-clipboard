@@ -15,9 +15,9 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"github.com/yourusername/elite-clipboard/internal/clipboard"
-	"github.com/yourusername/elite-clipboard/internal/db"
-	"github.com/yourusername/elite-clipboard/internal/ipc"
+	"github.com/cloakedbyte/elite-clipboard/internal/clipboard"
+	"github.com/cloakedbyte/elite-clipboard/internal/db"
+	"github.com/cloakedbyte/elite-clipboard/internal/ipc"
 )
 
 var wsNames = []string{"Work", "Code", "Research", "Temp", "Sensitive"}
