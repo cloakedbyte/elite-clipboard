@@ -14,7 +14,7 @@ No Electron. No Python. No cloud.
 | Requirement    | Details                             |
 |----------------|-------------------------------------|
 | OS             | Linux                               |
-| Display Server | X11 (Wayland not yet supported)     |
+| Display Server | X11 and Wayland                     |
 | Tested On      | Pop!_OS 22.04, Ubuntu 22.04+        |
 | Architecture   | amd64                               |
 
@@ -27,7 +27,7 @@ No Electron. No Python. No cloud.
 | Language        | Go 1.22+                      |
 | GUI             | Fyne v2                       |
 | Database        | SQLite via go-sqlite3 (CGO)   |
-| Clipboard I/O   | xclip                         |
+| Clipboard I/O   | xclip (X11) / wl-clipboard (Wayland) |
 | IPC             | Unix domain socket over JSON  |
 | Process manager | systemd user services         |
 | Fuzzy picker    | fzf                           |
@@ -65,11 +65,21 @@ go version
 
 ### System packages
 
+**X11:**
 ```bash
 sudo apt update
 sudo apt install -y \
   gcc libgl1-mesa-dev xorg-dev \
   xclip fzf libsqlite3-dev \
+  gir1.2-appindicator3-0.1
+```
+
+**Wayland** (use `wl-clipboard` in place of `xclip`):
+```bash
+sudo apt update
+sudo apt install -y \
+  gcc libgl1-mesa-dev xorg-dev \
+  wl-clipboard fzf libsqlite3-dev \
   gir1.2-appindicator3-0.1
 ```
 
@@ -99,74 +109,21 @@ go build -o bin/ecb ./cmd/ecb/
 go build -o bin/elite-tray ./cmd/tray/
 ```
 
-**4. Install to PATH**
+**4. Build, install, and enable services (one command)**
 
 ```bash
-sudo ln -sf $(pwd)/bin/elite-clipd /usr/local/bin/elite-clipd
-sudo ln -sf $(pwd)/bin/ecb /usr/local/bin/ecb
-sudo ln -sf $(pwd)/bin/ecb-pick /usr/local/bin/ecb-pick
+./install.sh
 ```
 
-**5. Check your DISPLAY**
+The script automatically:
+- Compiles all binaries
+- Installs symlinks to `/usr/local/bin`
+- Detects whether you are running X11 or Wayland and writes the correct
+  `DISPLAY` / `WAYLAND_DISPLAY` values into the service files
+- Creates `~/.config/systemd/user/elite-clipboard.service` and `elite-tray.service`
+- Enables and starts both services
 
-```bash
-echo $DISPLAY
-# usually :1 on Pop!_OS and Ubuntu
-```
-
-**6. Create daemon service at `~/.config/systemd/user/elite-clipboard.service`**
-
-```ini
-[Unit]
-Description=elite-clipboard daemon
-After=graphical-session.target
-PartOf=graphical-session.target
-
-[Service]
-Type=simple
-ExecStart=%h/elite-clipboard/bin/elite-clipd
-Restart=on-failure
-RestartSec=3
-StandardOutput=append:%h/.local/share/elite-clipboard/daemon.log
-StandardError=append:%h/.local/share/elite-clipboard/daemon.log
-Environment=DISPLAY=:1
-Environment=XAUTHORITY=/home/YOUR_USERNAME/.Xauthority
-
-[Install]
-WantedBy=graphical-session.target
-```
-
-**7. Create tray service at `~/.config/systemd/user/elite-tray.service`**
-
-```ini
-[Unit]
-Description=elite-clipboard tray
-After=graphical-session.target elite-clipboard.service
-Wants=elite-clipboard.service
-
-[Service]
-Type=simple
-ExecStart=%h/elite-clipboard/bin/elite-tray
-Restart=on-failure
-RestartSec=3
-Environment=DISPLAY=:1
-Environment=XAUTHORITY=/home/YOUR_USERNAME/.Xauthority
-
-[Install]
-WantedBy=graphical-session.target
-```
-
-Replace `YOUR_USERNAME` and `DISPLAY=:1` with your values.
-
-**8. Enable and start**
-
-```bash
-systemctl --user daemon-reload
-systemctl --user enable elite-clipboard.service elite-tray.service
-systemctl --user start elite-clipboard.service elite-tray.service
-```
-
-**9. Verify**
+**5. Verify**
 
 ```bash
 ecb ping
